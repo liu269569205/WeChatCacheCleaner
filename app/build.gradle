@@ -1,0 +1,30 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace 'com.lj.wxcache'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.lj.wxcache"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+        // tiny app, single dex is fine (keeps install small)
+        multiDexEnabled false
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+}
+
+dependencies {
+}
