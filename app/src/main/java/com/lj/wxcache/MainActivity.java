@@ -30,7 +30,7 @@ public class MainActivity extends Activity {
     private TextView tvRoot, tvSummary, tvLog;
     private Button btnClean, btnShortcut;
     private LinearLayout llList;
-    private ScrollView sv;
+    private ScrollView logScroll;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private List<WxClean.Instance> instances = new ArrayList<>();
     private boolean quickClean = false;
@@ -47,7 +47,7 @@ public class MainActivity extends Activity {
         tvSummary = findViewById(R.id.tvSummary);
         tvLog = findViewById(R.id.tvLog);
         llList = findViewById(R.id.llList);
-        sv = findViewById(R.id.sv);
+        logScroll = findViewById(R.id.logScroll);
         btnClean = findViewById(R.id.btnClean);
         btnShortcut = findViewById(R.id.btnShortcut);
 
@@ -225,7 +225,7 @@ public class MainActivity extends Activity {
     }
 
     private void scrollDown() {
-        sv.post(() -> sv.fullScroll(View.FOCUS_DOWN));
+        logScroll.post(() -> logScroll.fullScroll(View.FOCUS_DOWN));
     }
 
     private void clean() {

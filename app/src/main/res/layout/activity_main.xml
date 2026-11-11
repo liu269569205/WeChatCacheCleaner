@@ -56,14 +56,24 @@
             android:layout_marginTop="8dp"
             android:text="创建桌面快捷方式（一键清理）" />
 
-        <TextView
-            android:id="@+id/tvLog"
+        <ScrollView
+            android:id="@+id/logScroll"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="220dp"
             android:layout_marginTop="12dp"
-            android:text=""
-            android:textSize="13sp"
-            android:textColor="#333333"
-            android:typeface="monospace" />
+            android:background="@drawable/log_box_bg"
+            android:padding="10dp"
+            android:scrollbars="vertical"
+            android:fadeScrollbars="false">
+
+            <TextView
+                android:id="@+id/tvLog"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="13sp"
+                android:textColor="#333333"
+                android:typeface="monospace" />
+        </ScrollView>
     </LinearLayout>
 </ScrollView>
