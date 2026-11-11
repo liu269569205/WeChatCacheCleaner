@@ -35,6 +35,9 @@ public class MainActivity extends Activity {
     private List<WxClean.Instance> instances = new ArrayList<>();
     private boolean quickClean = false;
     private boolean postClean = false;
+    private volatile boolean cleaning = false;
+    private volatile boolean rootRequesting = false;
+    private boolean firstResume = true;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -66,6 +69,24 @@ public class MainActivity extends Activity {
         }
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // onCreate 之后系统会立即回调一次 onResume，跳过这次
+        if (firstResume) {
+            firstResume = false;
+            return;
+        }
+        // 从后台切回前台：再执行一次清理
+        if (cleaning || rootRequesting) return;
+        if (instances == null || instances.isEmpty()) {
+            requestRoot();
+        } else {
+            tvLog.append("\n检测到切回前台，重新清理…\n");
+            clean();
+        }
+    }
+
     private boolean isQuickClean(Intent i) {
         if (i == null) return false;
         return i.getBooleanExtra(EXTRA_QUICK_CLEAN, false)
@@ -74,6 +95,7 @@ public class MainActivity extends Activity {
 
     /** 立刻发起 su 请求；未授权时弹窗提示，并支持重新请求。 */
     private void requestRoot() {
+        rootRequesting = true;
         tvRoot.setText("正在请求 root 权限…（请在 Magisk / KernelSU 弹窗中允许）");
         tvSummary.setText("");
         postClean = false;
@@ -85,6 +107,7 @@ public class MainActivity extends Activity {
             // 先快速定位实例（不算 du），界面立刻有内容；占用随后异步查询
             List<WxClean.Instance> list = root ? WxClean.detect(false) : new ArrayList<>();
             ui.post(() -> {
+                rootRequesting = false;
                 btnShortcut.setEnabled(true);
                 if (root) {
                     tvRoot.setText("Root 权限：已获取 ✓");
@@ -206,6 +229,7 @@ public class MainActivity extends Activity {
     }
 
     private void clean() {
+        cleaning = true;
         btnClean.setEnabled(false);
         tvLog.append("\n开始按固定目录清理…\n");
         scrollDown();
@@ -220,8 +244,9 @@ public class MainActivity extends Activity {
                 tvLog.append(total.toString());
                 tvLog.append("✅ 全部完成。\n");
                 btnClean.setEnabled(true);
+                cleaning = false;
                 scrollDown();
-                // 清理完再异步刷新剩余占用
+                // 容量统计放异步线程，不阻塞删除
                 queryRemainingSizes(targets);
             });
         }).start();

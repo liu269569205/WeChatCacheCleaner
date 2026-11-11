@@ -154,31 +154,28 @@ public class WxClean {
 
     /**
      * 直接按固定目录删除，不扫描。返回可读日志。
-     * 先 force-stop 该用户下的微信，避免文件占用；删完再 force-stop 一次。
+     * 注意：所有目录合并成一条 rm -rf（只起一次 su），避免每个目录
+     * 都启动一次 su 进程；容量统计由调用方异步执行，不阻塞删除。
      */
     public static String clean(Instance inst) {
         StringBuilder log = new StringBuilder();
         RootShell.su("am force-stop --user " + inst.userId + " " + PKG + " 2>/dev/null");
-        long before = sizeMB(inst.dataDir);
 
-        int failed = 0;
+        // 不能对含 * 的路径加引号，否则通配符不会展开。
+        StringBuilder cmd = new StringBuilder("rm -rf ");
         for (String g : BROWSER_GLOBS) {
-            // 注意：不能对含 * 的路径加引号，否则通配符不会展开。
-            String target = inst.dataDir + "/" + g;
-            RootShell.Result r = RootShell.su("rm -rf " + target + " 2>/dev/null; echo RC=$?");
-            if (!r.out.contains("RC=0")) {
-                failed++;
-                log.append("· ").append(g).append(" → 删除失败（").append(r.out.trim()).append("）\n");
-            }
+            cmd.append(inst.dataDir).append('/').append(g).append(' ');
         }
+        cmd.append("2>/dev/null; echo RC=$?");
+        RootShell.Result r = RootShell.su(cmd.toString());
 
         RootShell.su("am force-stop --user " + inst.userId + " " + PKG + " 2>/dev/null");
-        long after = sizeMB(inst.dataDir);
-        long freed = Math.max(0, before - after);
 
-        StringBuilder head = new StringBuilder();
-        head.append("固定目录清理完成：").append(BROWSER_GLOBS.length - failed).append("/")
-                .append(BROWSER_GLOBS.length).append(" 项已处理，释放约 ").append(freed).append(" MB\n");
-        return head.append(log).toString();
+        if (r.out.contains("RC=0")) {
+            log.append("已删除全部网页/小程序缓存目录（容量后台统计中）\n");
+        } else {
+            log.append("部分删除失败：").append(r.out.trim()).append("\n");
+        }
+        return log.toString();
     }
 }
