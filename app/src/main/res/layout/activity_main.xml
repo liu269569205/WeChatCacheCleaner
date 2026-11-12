@@ -11,14 +11,6 @@
         android:padding="16dp">
 
         <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="微信缓存清理"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:textColor="#07C160" />
-
-        <TextView
             android:id="@+id/tvRoot"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -34,12 +26,13 @@
             android:text=""
             android:textSize="14sp" />
 
-        <LinearLayout
-            android:id="@+id/llList"
+        <CheckBox
+            android:id="@+id/cbCloseWeChat"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:layout_marginTop="4dp" />
+            android:layout_marginTop="10dp"
+            android:text="关闭微信后清理（更彻底）"
+            android:textSize="14sp" />
 
         <Button
             android:id="@+id/btnClean"
@@ -59,7 +52,7 @@
         <ScrollView
             android:id="@+id/logScroll"
             android:layout_width="match_parent"
-            android:layout_height="220dp"
+            android:layout_height="280dp"
             android:layout_marginTop="12dp"
             android:background="@drawable/log_box_bg"
             android:padding="10dp"

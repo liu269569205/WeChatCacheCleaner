@@ -153,13 +153,31 @@ public class WxClean {
     }
 
     /**
-     * 直接按固定目录删除，不扫描。返回可读日志。
-     * 注意：所有目录合并成一条 rm -rf（只起一次 su），避免每个目录
-     * 都启动一次 su 进程；容量统计由调用方异步执行，不阻塞删除。
+     * 直接按固定目录删除，不扫描。
+     *
+     * 不 force-stop 微信：Linux 下即使文件被进程打开也能 unlink，
+     * 所以微信可以保持运行。代价是运行中的 WebView/XWeb 可能立刻
+     * 重建部分缓存，内存里的 JS 需刷新页面后才失效。
+     * 容量统计由调用方异步执行，不阻塞删除。
      */
     public static String clean(Instance inst) {
+        return clean(inst, false);
+    }
+
+    /**
+     * 直接按固定目录删除，不扫描。
+     *
+     * @param forceStop true：先 force-stop 微信，能清掉运行中 XWeb 的活动缓存，更彻底；
+     *                  false：微信保持运行，rm 依然有效（Linux unlink），但运行中的
+     *                  WebView/XWeb 可能立刻重建部分缓存，内存里的 JS 需刷新页面。
+     * 容量统计由调用方异步执行，不阻塞删除。
+     */
+    public static String clean(Instance inst, boolean forceStop) {
         StringBuilder log = new StringBuilder();
-        RootShell.su("am force-stop --user " + inst.userId + " " + PKG + " 2>/dev/null");
+
+        if (forceStop) {
+            RootShell.su("am force-stop --user " + inst.userId + " " + PKG + " 2>/dev/null");
+        }
 
         // 不能对含 * 的路径加引号，否则通配符不会展开。
         StringBuilder cmd = new StringBuilder("rm -rf ");
@@ -169,10 +187,14 @@ public class WxClean {
         cmd.append("2>/dev/null; echo RC=$?");
         RootShell.Result r = RootShell.su(cmd.toString());
 
-        RootShell.su("am force-stop --user " + inst.userId + " " + PKG + " 2>/dev/null");
+        if (forceStop) {
+            RootShell.su("am force-stop --user " + inst.userId + " " + PKG + " 2>/dev/null");
+        }
 
         if (r.out.contains("RC=0")) {
-            log.append("已删除全部网页/小程序缓存目录（容量后台统计中）\n");
+            log.append("已删除全部网页/小程序缓存目录（")
+                    .append(forceStop ? "已关闭微信" : "未关闭微信")
+                    .append("，容量后台统计中）\n");
         } else {
             log.append("部分删除失败：").append(r.out.trim()).append("\n");
         }

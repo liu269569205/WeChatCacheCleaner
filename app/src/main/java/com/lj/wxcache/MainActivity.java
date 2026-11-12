@@ -3,6 +3,7 @@ package com.lj.wxcache;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ShortcutInfo;
 import android.content.pm.ShortcutManager;
 import android.graphics.drawable.Icon;
@@ -12,7 +13,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
 import android.widget.Button;
-import android.widget.LinearLayout;
+import android.widget.CheckBox;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -26,10 +27,12 @@ public class MainActivity extends Activity {
     public static final String ACTION_QUICK_CLEAN = "com.lj.wxcache.action.QUICK_CLEAN";
     public static final String EXTRA_QUICK_CLEAN = "quick_clean";
     private static final String SHORTCUT_ID = "quick_clean_wx";
+    private static final String PREF = "wxcache";
+    private static final String KEY_CLOSE_WECHAT = "close_wechat";
 
     private TextView tvRoot, tvSummary, tvLog;
     private Button btnClean, btnShortcut;
-    private LinearLayout llList;
+    private CheckBox cbCloseWeChat;
     private ScrollView logScroll;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private List<WxClean.Instance> instances = new ArrayList<>();
@@ -46,10 +49,17 @@ public class MainActivity extends Activity {
         tvRoot = findViewById(R.id.tvRoot);
         tvSummary = findViewById(R.id.tvSummary);
         tvLog = findViewById(R.id.tvLog);
-        llList = findViewById(R.id.llList);
         logScroll = findViewById(R.id.logScroll);
         btnClean = findViewById(R.id.btnClean);
         btnShortcut = findViewById(R.id.btnShortcut);
+        cbCloseWeChat = findViewById(R.id.cbCloseWeChat);
+
+        final SharedPreferences sp = getSharedPreferences(PREF, MODE_PRIVATE);
+        cbCloseWeChat.setChecked(sp.getBoolean(KEY_CLOSE_WECHAT, false));
+        cbCloseWeChat.setOnCheckedChangeListener((btn, checked) -> {
+            sp.edit().putBoolean(KEY_CLOSE_WECHAT, checked).apply();
+            if (instances != null && !instances.isEmpty()) render(instances);
+        });
 
         btnClean.setOnClickListener(v -> clean());
         btnShortcut.setOnClickListener(v -> createShortcut());
@@ -198,7 +208,6 @@ public class MainActivity extends Activity {
     }
 
     private void render(List<WxClean.Instance> list) {
-        llList.removeAllViews();
         if (list.isEmpty()) {
             tvSummary.setText("未检测到已安装的微信（" + WxClean.PKG + "）。");
             return;
@@ -206,20 +215,20 @@ public class MainActivity extends Activity {
         StringBuilder sb = new StringBuilder();
         sb.append("检测到 ").append(list.size()).append(" 个微信实例")
                 .append(list.size() > 1 ? "（多用户 / 多开）" : "（仅主用户）").append("\n");
-        sb.append("只清网页/小程序缓存（Cookie / LocalStorage / JS / HTTP），保留内核组件：\n");
-        sb.append("  app_webview* + app_xweb_data/{Default,Profile*}\n")
-                .append("  cache/*web* + MicroMsg/{jscache,CronetCache,...}\n\n");
+        sb.append("只清网页/小程序缓存，保留内核组件\n");
+        sb.append(cbCloseWeChat.isChecked()
+                ? "清理模式：先关闭微信（更彻底）\n\n"
+                : "清理模式：不关闭微信\n\n");
         for (WxClean.Instance i : list) {
-            String sizeText = i.sizeMB > 0
-                    ? ((postClean ? "清理后约 " : "约 ") + i.sizeMB + " MB")
-                    : "占用查询中…";
+            String sizeText;
+            if (i.sizeMB > 0) {
+                sizeText = (postClean ? "清理后约 " : "约 ") + i.sizeMB + " MB";
+            } else {
+                sizeText = postClean ? "已清理" : "占用查询中…";
+            }
             sb.append("· ").append(i.label).append("（用户").append(i.userId)
                     .append("）：").append(sizeText).append("\n   ")
                     .append(i.dataDir).append("\n");
-            TextView t = new TextView(this);
-            t.setText("▶ " + i.label + " / 用户" + i.userId + "  ·  " + sizeText);
-            t.setPadding(0, 8, 0, 8);
-            llList.addView(t);
         }
         tvSummary.setText(sb.toString());
     }
@@ -230,15 +239,17 @@ public class MainActivity extends Activity {
 
     private void clean() {
         cleaning = true;
+        final boolean closeWeChat = cbCloseWeChat.isChecked();
         btnClean.setEnabled(false);
         tvLog.append("\n开始按固定目录清理…\n");
+        tvLog.append("模式：" + (closeWeChat ? "关闭微信后清理" : "不关闭微信") + "\n");
         scrollDown();
         final List<WxClean.Instance> targets = instances;
         new Thread(() -> {
             StringBuilder total = new StringBuilder();
             for (WxClean.Instance i : targets) {
                 total.append("【").append(i.label).append(" / 用户").append(i.userId).append("】\n");
-                total.append(WxClean.clean(i)).append("\n");
+                total.append(WxClean.clean(i, closeWeChat)).append("\n");
             }
             ui.post(() -> {
                 tvLog.append(total.toString());
